@@ -26,5 +26,8 @@
     "ts-node": "^10.4.0",
     "ts-node-dev": "^1.1.8",
     "typescript": "^4.5.4"
+  },
+  "dependencies": {
+    "@geolonia/normalize-japanese-addresses": "^2.3.5"
   }
 }
