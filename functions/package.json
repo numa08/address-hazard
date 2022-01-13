@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@geolonia/normalize-japanese-addresses": "^2.3.5",
+    "@google-cloud/pubsub": "^2.18.4",
     "firebase-admin": "^10.0.1",
     "firebase-functions": "^3.16.0"
   },
