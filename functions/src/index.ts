@@ -17,7 +17,7 @@ const db = getFirestore();
  * @param {string} address ハザードマップ情報を取得したい住所
  * @returns Firestoreのキー。クライアントはこのキーのデータを参照する
  */
-exports.disaportaldata = https.onRequest(async (req, res) => {
+exports.disaportaldataTask = https.onRequest(async (req, res) => {
   const address: string = req.query.address as string;
   if (!address) {
     res.status(400).send("Address is required");
@@ -81,3 +81,19 @@ exports.getDisaportaldata = pubsub
       return error;
     }
   });
+
+exports.disaportaldata = https.onRequest(async (req, res) => {
+  const id: string = req.query.id as string;
+  if (!id) {
+    res.status(400).send("Id is required");
+    return;
+  }
+  const data = await db.collection("disaportaldata").doc(id).get();
+  if (!data.exists) {
+    res.status(404).send("Data not found");
+    return;
+  } else {
+    res.status(200).send(data.data());
+    return;
+  }
+});
