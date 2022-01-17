@@ -24,43 +24,60 @@ exports.disaportaldata = https.onRequest(async (req, res) => {
     return;
   }
   logger.info(`address: ${address}`);
-  // firestoreのキーにはbase64エンコードした住所を使用して、正規化前の住所を利用する
-  // クライアントサイドでも同じキーを使用してデータの参照ができるようにしたい
-  const firestoreId = Buffer.from(address).toString("base64");
 
   // すでに同じ住所のデータがあるかどうか確認。検索済みの住所なら、処理をしたくないので、キャッシュとして返す。
-  const cachedData = await db.collection("disaportaldata").doc(firestoreId).get();
-  if (cachedData.exists) {
-    logger.info(`cache hit: ${firestoreId}`);
-    res.status(200).send(firestoreId);
+  const cachedData = await db
+    .collection("disaportaldata")
+    .where("originalAddress", "==", address)
+    .get();
+  if (!cachedData.empty) {
+    const cache = cachedData.docs[0];
+    logger.info(`cache hit: ${cache.id}`);
+    res.status(200).send(cache.id);
     return;
   }
 
   const pubSubClient = new PubSub();
-  
-  const data = Buffer.from(JSON.stringify({ address }));
+
+  // firestoreに正規化前の住所を保存し、IDをPub/Subに通知
+  // Pub/SubにIdが通知されると、getDisaportaldataでハザードマップポータルの情報を取得する
+
+  const doc = await db
+    .collection("disaportaldata")
+    .add({ originalAddress: address });
+  const data = Buffer.from(JSON.stringify({ id: doc.id, address: address }));
   try {
-    const messageId = await pubSubClient.topic("disaportaldata").publishMessage({data});
+    const messageId = await pubSubClient
+      .topic("disaportaldata")
+      .publishMessage({ data });
     logger.info(`Message ${messageId} published.`);
-    res.status(200).send(firestoreId);
+    res.status(200).send(doc.id);
   } catch (error) {
     logger.error(error);
     res.status(500).send(error);
   }
 });
 
-exports.getDisaportaldata = pubsub.topic("disaportaldata").onPublish(async (message) => {
-  const address: string = message.json.address as string;
-  const id = Buffer.from(address).toString("base64");
-  try {
-    const disaportaldata = await getDisaportaldata(address);
-    logger.info("getDisaportaldata success", disaportaldata);
-    await db.collection("disaportaldata").doc(id).set(disaportaldata);
-    return disaportaldata;
-  } catch (error) {
-    logger.error("getDisaportaldata error", error);
-    await db.collection("disaportaldata").doc(id).set({ address, error: true });
-    return error;    
-  }
+// Pub/Subが通知したid内のデータからハザードマップポータルのデータを取得し、
+// firestoreを更新する
+exports.getDisaportaldata = pubsub
+  .topic("disaportaldata")
+  .onPublish(async (message) => {
+    const id: string = message.json.id;
+    const address: string = message.json.address as string;
 
-});
+    try {
+      const disaportaldata = await getDisaportaldata(address);
+      logger.info("getDisaportaldata success", disaportaldata);
+      const data = { ...disaportaldata, originalAddress: address };
+      await db.collection("disaportaldata").doc(id).set(data);
+      return disaportaldata;
+    } catch (error) {
+      logger.error("getDisaportaldata error", error);
+      await db
+        .collection("disaportaldata")
+        .doc(id)
+        .set({ originalAddress: address, error: true });
+      return error;
+    }
+  });
