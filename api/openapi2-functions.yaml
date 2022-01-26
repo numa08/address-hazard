@@ -1,0 +1,60 @@
+swagger: '2.0'
+info:
+  title: address-hazard-api
+  description: Address hazard APIs for cliant softwares
+  version: 0.1.0
+schemes:
+  - https
+produces:
+  - application/json
+x-google-management:
+  metrics:
+    - name: "read-request"
+      displayName: "Read request"
+      valueType: INT64
+      metricKind: DELTA
+  quota:
+    limits:
+      - name: "read-limit"
+        metric: "read-request"
+        unit: "1/min/{project}"
+        values:
+          STANDARD: 40
+paths:
+  /disaportaldataTask:
+    get:
+      summary: Create get hazard data task
+      operationId: disaportaldataTask
+      x-google-backend:
+        address: https://asia-northeast1-address-hazard.cloudfunctions.net/disaportaldataTask
+      security:
+      - api_key: []
+      x-google-quota:
+        metricCosts:
+          "read-request": 1
+      responses:
+        '200':
+          description: Success create task
+          schema:
+            type: string
+  /disaportaldata:
+    get:
+      summary: Get hazard data
+      operationId: disaportaldata
+      x-google-backend:
+        address: https://asia-northeast1-address-hazard.cloudfunctions.net/disaportaldata
+      security:
+      - api_key: []
+      x-google-quota:
+        metricCosts:
+          "read-request": 1
+      responses:
+        '200':
+          description: Success get data
+          schema:
+            type: string
+securityDefinitions:
+  api_key:
+    type: "apiKey"
+    name: "key"
+    in: "query"
